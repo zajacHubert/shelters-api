@@ -1,0 +1,716 @@
+{
+  "info": {
+    "name": "Shelters API",
+    "_postman_id": "shelters-api-collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Kolekcja do testowania Shelters API.\n\nKolejność wykonania dla happy-path:\n1. Shelters / Create Shelter\n2. Needs / Create Need - Pilne\n3. Needs / Create Need - Umiarkowane\n4. Needs / Create Need - Bez pośpiechu\n5. Pozostałe requesty GET/PATCH/DELETE"
+  },
+  "variable": [
+    { "key": "baseUrl",   "value": "http://localhost:3000", "type": "string" },
+    { "key": "shelterId", "value": "",                      "type": "string" },
+    { "key": "needId",    "value": "",                      "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Shelters",
+      "item": [
+        {
+          "name": "Create Shelter (adres dostawy taki sam)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                "pm.test('Has id', () => {",
+                "  const json = pm.response.json();",
+                "  pm.expect(json).to.have.property('id');",
+                "  pm.collectionVariables.set('shelterId', json.id);",
+                "});",
+                "pm.test('deliverySameAsAddress is true', () => {",
+                "  pm.expect(pm.response.json().deliverySameAsAddress).to.be.true;",
+                "});"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/shelters", "host": ["{{baseUrl}}"], "path": ["shelters"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Schronisko Na Paluchu\",\n  \"phoneNumber\": \"+48501234567\",\n  \"address\": {\n    \"postalCode\": \"02-159\",\n    \"city\": \"Warszawa\",\n    \"street\": \"ul. Paluch\",\n    \"houseNumber\": \"2\"\n  },\n  \"deliverySameAsAddress\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Shelter (osobny adres dostawy)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                "pm.test('Has separate deliveryAddress', () => {",
+                "  const json = pm.response.json();",
+                "  pm.expect(json.deliverySameAsAddress).to.be.false;",
+                "});"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/shelters", "host": ["{{baseUrl}}"], "path": ["shelters"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Schronisko KTOZ Kraków\",\n  \"phoneNumber\": \"+48123456789\",\n  \"address\": {\n    \"postalCode\": \"30-001\",\n    \"city\": \"Kraków\",\n    \"street\": \"ul. Rzeźnicza\",\n    \"houseNumber\": \"1\"\n  },\n  \"deliverySameAsAddress\": false,\n  \"deliveryAddress\": {\n    \"postalCode\": \"30-100\",\n    \"city\": \"Kraków\",\n    \"street\": \"ul. Magazynowa\",\n    \"houseNumber\": \"5\",\n    \"apartmentNumber\": \"3\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Shelter - błędne dane (400)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                "pm.test('Has validation errors', () => {",
+                "  pm.expect(pm.response.json()).to.have.property('message');",
+                "});"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/shelters", "host": ["{{baseUrl}}"], "path": ["shelters"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"phoneNumber\": \"not-a-phone\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get All Shelters (strona 1)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('Paginated response', () => {",
+                "  const json = pm.response.json();",
+                "  pm.expect(json).to.have.property('data').that.is.an('array');",
+                "  pm.expect(json).to.have.property('meta');",
+                "  pm.expect(json.meta).to.include.all.keys('total', 'page', 'limit', 'totalPages');",
+                "  pm.expect(json.meta.page).to.equal(1);",
+                "  pm.expect(json.meta.limit).to.equal(10);",
+                "});"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/shelters?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["shelters"],
+              "query": [
+                { "key": "page",  "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Shelter by ID",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('Has correct id', () => {",
+                "  const json = pm.response.json();",
+                "  pm.expect(json.id).to.equal(pm.collectionVariables.get('shelterId'));",
+                "});",
+                "pm.test('Has address fields', () => {",
+                "  const json = pm.response.json();",
+                "  pm.expect(json).to.have.property('address');",
+                "  pm.expect(json).to.have.property('deliveryAddress');",
+                "  pm.expect(json).to.have.property('needs').that.is.an('array');",
+                "});"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/shelters/{{shelterId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["shelters", "{{shelterId}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Shelter by ID - nie istnieje (404)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 404', () => pm.response.to.have.status(404));"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/shelters/00000000-0000-0000-0000-000000000000",
+              "host": ["{{baseUrl}}"],
+              "path": ["shelters", "00000000-0000-0000-0000-000000000000"]
+            }
+          }
+        },
+        {
+          "name": "Update Shelter - nazwa i telefon",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('Name updated', () => {",
+                "  pm.expect(pm.response.json().name).to.equal('Schronisko Na Paluchu (zaktualizowane)');",
+                "});"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/shelters/{{shelterId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["shelters", "{{shelterId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Schronisko Na Paluchu (zaktualizowane)\",\n  \"phoneNumber\": \"+48509999999\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Shelter - zmiana adresu dostawy",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('deliverySameAsAddress is false', () => {",
+                "  pm.expect(pm.response.json().deliverySameAsAddress).to.be.false;",
+                "});"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/shelters/{{shelterId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["shelters", "{{shelterId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deliverySameAsAddress\": false,\n  \"deliveryAddress\": {\n    \"postalCode\": \"02-001\",\n    \"city\": \"Warszawa\",\n    \"street\": \"ul. Nowa\",\n    \"houseNumber\": \"10\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Shelter",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 204', () => pm.response.to.have.status(204));"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/shelters/{{shelterId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["shelters", "{{shelterId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Needs (Potrzebne produkty)",
+      "item": [
+        {
+          "name": "Create Need - Pilne (urgent)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                "pm.test('Has id and shelterId', () => {",
+                "  const json = pm.response.json();",
+                "  pm.expect(json).to.have.property('id');",
+                "  pm.expect(json).to.have.property('shelterId');",
+                "  pm.expect(json.status).to.equal('urgent');",
+                "  pm.collectionVariables.set('needId', json.id);",
+                "});"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/needs", "host": ["{{baseUrl}}"], "path": ["needs"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Karma dla psów sucha 15kg\",\n  \"description\": \"Potrzebujemy pilnie karmy dla psów dorosłych, duże opakowania\",\n  \"imageUrl\": \"https://example.com/karma.jpg\",\n  \"purchaseLink\": \"https://allegro.pl/oferta/karma-dla-psow-12345\",\n  \"status\": \"urgent\",\n  \"shelterId\": \"{{shelterId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Need - Umiarkowane (moderate)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                "pm.test('Status is moderate', () => {",
+                "  pm.expect(pm.response.json().status).to.equal('moderate');",
+                "});"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/needs", "host": ["{{baseUrl}}"], "path": ["needs"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Legowiska dla kotów\",\n  \"description\": \"Miękkie legowiska, rozmiar M lub L\",\n  \"status\": \"moderate\",\n  \"shelterId\": \"{{shelterId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Need - Bez pośpiechu (no_rush)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                "pm.test('Status is no_rush', () => {",
+                "  pm.expect(pm.response.json().status).to.equal('no_rush');",
+                "});"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/needs", "host": ["{{baseUrl}}"], "path": ["needs"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Zabawki dla psów\",\n  \"purchaseLink\": \"https://allegro.pl/oferta/zabawki-psy-67890\",\n  \"status\": \"no_rush\",\n  \"shelterId\": \"{{shelterId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Need - nieistniejące schronisko (404)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 404', () => pm.response.to.have.status(404));"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/needs", "host": ["{{baseUrl}}"], "path": ["needs"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Test\",\n  \"status\": \"urgent\",\n  \"shelterId\": \"00000000-0000-0000-0000-000000000000\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get All Needs (paginacja)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('Paginated with shelter always loaded', () => {",
+                "  const json = pm.response.json();",
+                "  pm.expect(json).to.have.property('data').that.is.an('array');",
+                "  pm.expect(json).to.have.property('meta');",
+                "  pm.expect(json.meta).to.include.all.keys('total', 'page', 'limit', 'totalPages');",
+                "  if (json.data.length > 0) {",
+                "    pm.expect(json.data[0]).to.have.property('shelter');",
+                "    pm.expect(json.data[0].shelter).to.have.property('id');",
+                "    pm.expect(json.data[0].shelter).to.have.property('name');",
+                "  }",
+                "});"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/needs?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["needs"],
+              "query": [
+                { "key": "page",        "value": "1" },
+                { "key": "limit",       "value": "10" },
+                { "key": "status",      "value": "", "disabled": true },
+                { "key": "title",       "value": "", "disabled": true },
+                { "key": "shelterName", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Needs - filter: status=urgent",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('All results have status urgent', () => {",
+                "  pm.response.json().data.forEach(need => {",
+                "    pm.expect(need.status).to.equal('urgent');",
+                "  });",
+                "});"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/needs?status=urgent&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["needs"],
+              "query": [
+                { "key": "status", "value": "urgent" },
+                { "key": "page",   "value": "1" },
+                { "key": "limit",  "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Needs - filter: status=moderate",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/needs?status=moderate&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["needs"],
+              "query": [
+                { "key": "status", "value": "moderate" },
+                { "key": "page",   "value": "1" },
+                { "key": "limit",  "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Needs - filter: status=no_rush",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/needs?status=no_rush&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["needs"],
+              "query": [
+                { "key": "status", "value": "no_rush" },
+                { "key": "page",   "value": "1" },
+                { "key": "limit",  "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Needs - filter: title (nazwa potrzeby)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('Results match title filter', () => {",
+                "  const title = 'karma';",
+                "  pm.response.json().data.forEach(need => {",
+                "    pm.expect(need.title.toLowerCase()).to.include(title);",
+                "  });",
+                "});"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/needs?title=karma&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["needs"],
+              "query": [
+                { "key": "title", "value": "karma" },
+                { "key": "page",  "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Needs - filter: shelterName (nazwa schroniska)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('Shelter name matches filter', () => {",
+                "  const shelterName = 'paluch';",
+                "  pm.response.json().data.forEach(need => {",
+                "    pm.expect(need.shelter.name.toLowerCase()).to.include(shelterName);",
+                "  });",
+                "});"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/needs?shelterName=paluch&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["needs"],
+              "query": [
+                { "key": "shelterName", "value": "paluch" },
+                { "key": "page",        "value": "1" },
+                { "key": "limit",       "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Needs - filter: shelterName + status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/needs?shelterName=paluch&status=moderate&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["needs"],
+              "query": [
+                { "key": "shelterName", "value": "paluch" },
+                { "key": "status",      "value": "moderate" },
+                { "key": "page",        "value": "1" },
+                { "key": "limit",       "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Needs - filter: title + status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/needs?title=karma&status=urgent&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["needs"],
+              "query": [
+                { "key": "title",  "value": "karma" },
+                { "key": "status", "value": "urgent" },
+                { "key": "page",   "value": "1" },
+                { "key": "limit",  "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Needs - filter: shelterName + title + status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/needs?shelterName=paluch&title=karma&status=urgent&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["needs"],
+              "query": [
+                { "key": "shelterName", "value": "paluch" },
+                { "key": "title",       "value": "karma" },
+                { "key": "status",      "value": "urgent" },
+                { "key": "page",        "value": "1" },
+                { "key": "limit",       "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Needs - strona 2 (paginacja)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/needs?page=2&limit=2",
+              "host": ["{{baseUrl}}"],
+              "path": ["needs"],
+              "query": [
+                { "key": "page",  "value": "2" },
+                { "key": "limit", "value": "2" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Need by ID",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('Has shelter object', () => {",
+                "  const json = pm.response.json();",
+                "  pm.expect(json).to.have.property('shelter');",
+                "  pm.expect(json.shelter).to.have.property('id');",
+                "  pm.expect(json.shelter).to.have.property('name');",
+                "  pm.expect(json.shelter).to.have.property('address');",
+                "  pm.expect(json.shelter).to.have.property('deliveryAddress');",
+                "});",
+                "pm.test('Has correct id', () => {",
+                "  pm.expect(pm.response.json().id).to.equal(pm.collectionVariables.get('needId'));",
+                "});"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/needs/{{needId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["needs", "{{needId}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Need by ID - nie istnieje (404)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 404', () => pm.response.to.have.status(404));"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/needs/00000000-0000-0000-0000-000000000000",
+              "host": ["{{baseUrl}}"],
+              "path": ["needs", "00000000-0000-0000-0000-000000000000"]
+            }
+          }
+        },
+        {
+          "name": "Update Need - zmiana statusu",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('Status updated to moderate', () => {",
+                "  pm.expect(pm.response.json().status).to.equal('moderate');",
+                "});"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/needs/{{needId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["needs", "{{needId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"moderate\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Need - tytuł i link",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('Title and link updated', () => {",
+                "  const json = pm.response.json();",
+                "  pm.expect(json.title).to.equal('Karma Premium dla psów 20kg');",
+                "  pm.expect(json.purchaseLink).to.include('allegro.pl');",
+                "});"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/needs/{{needId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["needs", "{{needId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Karma Premium dla psów 20kg\",\n  \"purchaseLink\": \"https://allegro.pl/oferta/karma-premium-99999\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Need",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 204', () => pm.response.to.have.status(204));"
+              ],
+              "type": "text/javascript"
+            }
+          }],
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/needs/{{needId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["needs", "{{needId}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
