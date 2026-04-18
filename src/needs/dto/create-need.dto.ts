@@ -1,7 +1,9 @@
 import {
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsOptional,
+  IsPositive,
   IsString,
   IsUrl,
   IsUUID,
@@ -24,6 +26,11 @@ export class CreateNeedDto {
   @IsOptional()
   @IsUrl()
   purchaseLink?: string;
+
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  quantity?: number;
 
   @IsEnum(NeedStatus)
   status: NeedStatus;

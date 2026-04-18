@@ -27,6 +27,9 @@ export class Need {
   @Column({ nullable: true })
   purchaseLink?: string;
 
+  @Column({ type: 'int', nullable: true })
+  quantity?: number;
+
   @Column({
     type: 'enum',
     enum: NeedStatus,

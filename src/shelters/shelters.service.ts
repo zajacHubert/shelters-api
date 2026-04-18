@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -30,7 +31,12 @@ export class SheltersService {
     });
     try {
       return await this.shelterRepository.save(shelter);
-    } catch {
+    } catch (err: any) {
+      if (err?.code === '23505') {
+        throw new ConflictException(
+          `Shelter with name "${dto.name}" already exists`,
+        );
+      }
       throw new InternalServerErrorException('Failed to create shelter');
     }
   }

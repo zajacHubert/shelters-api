@@ -8,7 +8,7 @@ import { Repository } from 'typeorm';
 import { PaginatedResult } from '../common/interfaces/paginated-result.interface';
 import { SheltersService } from '../shelters/shelters.service';
 import { CreateNeedDto } from './dto/create-need.dto';
-import { FilterNeedsDto } from './dto/filter-needs.dto';
+import { NeedSortBy, SortNeedsDto, SortOrder } from './dto/sort-needs.dto';
 import { UpdateNeedDto } from './dto/update-need.dto';
 import { Need } from './entities/need.entity';
 
@@ -30,28 +30,27 @@ export class NeedsService {
     }
   }
 
-  async findAll(filters: FilterNeedsDto): Promise<PaginatedResult<Need>> {
+  async findAll(sort: SortNeedsDto): Promise<PaginatedResult<Need>> {
+    const order = sort.sortOrder ?? SortOrder.DESC;
+
     const qb = this.needRepository
       .createQueryBuilder('need')
       .leftJoinAndSelect('need.shelter', 'shelter')
-      .orderBy('need.createdAt', 'DESC')
-      .skip(filters.skip)
-      .take(filters.limit);
+      .skip(sort.skip)
+      .take(sort.limit);
 
-    if (filters.status) {
-      qb.andWhere('need.status = :status', { status: filters.status });
-    }
-
-    if (filters.title) {
-      qb.andWhere('LOWER(need.title) LIKE :title', {
-        title: `%${filters.title.toLowerCase()}%`,
-      });
-    }
-
-    if (filters.shelterName) {
-      qb.andWhere('LOWER(shelter.name) LIKE :shelterName', {
-        shelterName: `%${filters.shelterName.toLowerCase()}%`,
-      });
+    switch (sort.sortBy) {
+      case NeedSortBy.TITLE:
+        qb.orderBy('need.title', order);
+        break;
+      case NeedSortBy.STATUS:
+        qb.orderBy('need.status', order);
+        break;
+      case NeedSortBy.SHELTER_NAME:
+        qb.orderBy('shelter.name', order);
+        break;
+      default:
+        qb.orderBy('need.createdAt', order);
     }
 
     const [data, total] = await qb.getManyAndCount();
@@ -59,9 +58,9 @@ export class NeedsService {
       data,
       meta: {
         total,
-        page: filters.page,
-        limit: filters.limit,
-        totalPages: Math.ceil(total / filters.limit),
+        page: sort.page,
+        limit: sort.limit,
+        totalPages: Math.ceil(total / sort.limit),
       },
     };
   }

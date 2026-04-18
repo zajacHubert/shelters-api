@@ -12,7 +12,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { CreateNeedDto } from './dto/create-need.dto';
-import { FilterNeedsDto } from './dto/filter-needs.dto';
+import { SortNeedsDto } from './dto/sort-needs.dto';
 import { UpdateNeedDto } from './dto/update-need.dto';
 import { NeedsService } from './needs.service';
 
@@ -27,8 +27,8 @@ export class NeedsController {
   }
 
   @Get()
-  async findAll(@Query() filters: FilterNeedsDto) {
-    return this.needsService.findAll(filters);
+  async findAll(@Query() sort: SortNeedsDto) {
+    return this.needsService.findAll(sort);
   }
 
   @Get(':id')
